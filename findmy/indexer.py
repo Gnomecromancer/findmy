@@ -58,28 +58,32 @@ def index(
             chunk_texts.clear()
             store.save()
 
-        for p, mt, sz in to_index:
-            try:
-                content = p.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
+        try:
+            for p, mt, sz in to_index:
+                try:
+                    content = p.read_text(encoding="utf-8", errors="replace")
+                except OSError:
+                    continue
 
-            chunks = list(chunk_file(p, content))
-            if not chunks:
-                continue
+                chunks = list(chunk_file(p, content))
+                if not chunks:
+                    continue
 
-            chunk_buffer.append((p, mt, sz, chunks))
-            chunk_texts.extend(text for text, _ in chunks)
-            processed += 1
+                chunk_buffer.append((p, mt, sz, chunks))
+                chunk_texts.extend(text for text, _ in chunks)
+                processed += 1
 
-            if on_progress:
-                on_progress(str(p), processed, total)
+                if on_progress:
+                    on_progress(str(p), processed, total)
 
-            # Flush when we have enough chunks for a GPU batch
-            if len(chunk_texts) >= BATCH_SIZE * 4:
-                _flush()
+                # Flush when we have enough chunks for a GPU batch
+                if len(chunk_texts) >= BATCH_SIZE * 4:
+                    _flush()
 
-        _flush()
+            _flush()
+        except KeyboardInterrupt:
+            _flush()  # save whatever is in the buffer
+            raise
 
     return {
         "processed": processed,

@@ -36,7 +36,12 @@ def index(paths, exclude, force, quiet):
                 click.echo(f"  [{pct:3d}%] {current}/{total}  {Path(path_str).name}", nl=True)
             last_reported[0] = current
 
-        result = do_index(root, list(exclude), force=force, on_progress=progress if not quiet else None)
+        try:
+            result = do_index(root, list(exclude), force=force, on_progress=progress if not quiet else None)
+        except KeyboardInterrupt:
+            if not quiet:
+                click.echo("\nInterrupted — progress saved. Resume by running index again.")
+            return
 
         if not quiet:
             click.echo(
