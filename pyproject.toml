@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [project.scripts]
-find = "find.cli:main"
+semfind = "find.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/Gnomecromancer/find"
