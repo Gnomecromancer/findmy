@@ -40,8 +40,10 @@ class Store:
         import faiss  # type: ignore
 
         FIND_DIR.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(META_PATH))
+        self._conn = sqlite3.connect(str(META_PATH), timeout=30)
         self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode = WAL")
+        self._conn.execute("PRAGMA synchronous = NORMAL")
         _init_db(self._conn)
         self._conn.execute("PRAGMA foreign_keys = ON")
 
