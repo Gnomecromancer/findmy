@@ -1,7 +1,7 @@
 """Tests for the chunker module."""
 import pytest
 from pathlib import Path
-from find.chunker import chunk_file, _token_approx
+from findmy.chunker import chunk_file, _token_approx
 
 
 def test_short_file_single_chunk():

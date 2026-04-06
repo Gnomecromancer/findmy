@@ -7,13 +7,13 @@ import numpy as np
 import pytest
 from click.testing import CliRunner
 
-from find.cli import main
+from findmy.cli import main
 
 
 @pytest.fixture(autouse=True)
 def tmp_store_dir(tmp_path, monkeypatch):
-    import find.config as cfg
-    import find.store as st
+    import findmy.config as cfg
+    import findmy.store as st
     idx = tmp_path / "index.faiss"
     meta = tmp_path / "meta.db"
     monkeypatch.setattr(cfg, "FIND_DIR", tmp_path)

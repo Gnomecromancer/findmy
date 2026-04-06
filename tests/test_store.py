@@ -9,8 +9,8 @@ import pytest
 # Patch FIND_DIR in both config and store (store imports at module level)
 @pytest.fixture(autouse=True)
 def tmp_store_dir(tmp_path, monkeypatch):
-    import find.config as cfg
-    import find.store as st
+    import findmy.config as cfg
+    import findmy.store as st
     idx = tmp_path / "index.faiss"
     meta = tmp_path / "meta.db"
     monkeypatch.setattr(cfg, "FIND_DIR", tmp_path)
@@ -29,7 +29,7 @@ def _rand_vecs(n: int, dim: int = 384) -> np.ndarray:
 
 
 def test_add_and_search():
-    from find.store import Store
+    from findmy.store import Store
     chunks = [("hello world code", "foo.py: def hello"), ("goodbye world", "foo.py: def bye")]
     vecs = _rand_vecs(2)
 
@@ -43,7 +43,7 @@ def test_add_and_search():
 
 
 def test_stats_after_add():
-    from find.store import Store
+    from findmy.store import Store
     chunks = [("chunk one", "a.py: def a"), ("chunk two", "a.py: def b")]
     vecs = _rand_vecs(2)
 
@@ -57,13 +57,13 @@ def test_stats_after_add():
 
 
 def test_file_needs_index_new_file():
-    from find.store import Store
+    from findmy.store import Store
     with Store() as store:
         assert store.file_needs_index(Path("/new.py"), 9999.0) is True
 
 
 def test_file_needs_index_unchanged():
-    from find.store import Store
+    from findmy.store import Store
     vecs = _rand_vecs(1)
     with Store() as store:
         store.add_file(Path("/a.py"), 1000.0, 100, [("x", "a.py")], vecs)
@@ -71,7 +71,7 @@ def test_file_needs_index_unchanged():
 
 
 def test_file_needs_index_newer_mtime():
-    from find.store import Store
+    from findmy.store import Store
     vecs = _rand_vecs(1)
     with Store() as store:
         store.add_file(Path("/a.py"), 1000.0, 100, [("x", "a.py")], vecs)
@@ -79,7 +79,7 @@ def test_file_needs_index_newer_mtime():
 
 
 def test_delete_file():
-    from find.store import Store
+    from findmy.store import Store
     vecs = _rand_vecs(1)
     with Store() as store:
         store.add_file(Path("/a.py"), 1000.0, 100, [("x", "a.py")], vecs)
@@ -90,7 +90,7 @@ def test_delete_file():
 
 
 def test_ext_filter():
-    from find.store import Store
+    from findmy.store import Store
     py_vec = _rand_vecs(1)
     md_vec = _rand_vecs(1)
     with Store() as store:

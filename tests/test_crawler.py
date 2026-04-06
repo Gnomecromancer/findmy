@@ -2,7 +2,7 @@
 import tempfile
 from pathlib import Path
 
-from find.crawler import crawl
+from findmy.crawler import crawl
 
 
 def _make_tree(root: Path, files: dict) -> None:
