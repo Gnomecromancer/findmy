@@ -42,8 +42,11 @@ class Store:
         FIND_DIR.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(str(META_PATH), timeout=30)
         self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode = WAL")
-        self._conn.execute("PRAGMA synchronous = NORMAL")
+        try:
+            self._conn.execute("PRAGMA journal_mode = WAL")
+            self._conn.execute("PRAGMA synchronous = NORMAL")
+        except sqlite3.OperationalError:
+            pass  # another process has the DB open; continue in default mode
         _init_db(self._conn)
         self._conn.execute("PRAGMA foreign_keys = ON")
 
