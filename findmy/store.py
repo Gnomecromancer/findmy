@@ -57,26 +57,37 @@ class Store:
 
         self._faiss = faiss
 
+        # Bulk-load known file mtimes for O(1) needs-index checks
+        self._known: dict[str, float] = {
+            row[0]: row[1]
+            for row in self._conn.execute("SELECT path, mtime FROM files")
+        }
+
     # ------------------------------------------------------------------ #
     # File tracking                                                        #
     # ------------------------------------------------------------------ #
 
     def file_needs_index(self, path: Path, mtime: float) -> bool:
-        row = self._conn.execute(
-            "SELECT mtime FROM files WHERE path = ?", (str(path),)
-        ).fetchone()
-        if row is None:
-            return True
-        return float(row["mtime"]) < mtime
+        known_mtime = self._known.get(str(path))
+        return known_mtime is None or known_mtime < mtime
 
     def delete_file(self, path: Path) -> None:
         """Remove all chunks for a file (FAISS ids are not freed, just orphaned)."""
         self._conn.execute("DELETE FROM files WHERE path = ?", (str(path),))
         self._conn.commit()
+        self._known.pop(str(path), None)
 
     # ------------------------------------------------------------------ #
-    # Adding chunks                                                        #
+    # Adding chunks (call begin_batch / end_batch around bulk adds)        #
     # ------------------------------------------------------------------ #
+
+    def begin_batch(self) -> None:
+        """Start an explicit transaction for bulk inserts."""
+        self._conn.execute("BEGIN")
+
+    def end_batch(self) -> None:
+        """Commit the current batch transaction."""
+        self._conn.execute("COMMIT")
 
     def add_file(
         self,
@@ -85,6 +96,8 @@ class Store:
         size: int,
         chunks: list[tuple[str, str]],   # (text, label)
         embeddings: np.ndarray,           # shape (len(chunks), EMBED_DIM)
+        *,
+        in_batch: bool = False,           # set True when inside begin/end_batch
     ) -> None:
         """Upsert a file's chunks into FAISS + SQLite."""
         # Normalize for cosine similarity via inner product
@@ -92,21 +105,18 @@ class Store:
         norms = np.where(norms == 0, 1.0, norms)
         normed = (embeddings / norms).astype("float32")
 
-        # Assign FAISS ids = current index size + offset
         start_id = self._index.ntotal
         self._index.add(normed)
 
-        # Delete old record if present
-        self.delete_file(path)
+        # Remove old record
+        self._conn.execute("DELETE FROM files WHERE path = ?", (str(path),))
 
-        # Insert file record
         cur = self._conn.execute(
             "INSERT INTO files (path, mtime, size, indexed) VALUES (?, ?, ?, ?)",
             (str(path), mtime, size, time.time()),
         )
         file_id = cur.lastrowid
 
-        # Insert chunk records
         self._conn.executemany(
             "INSERT INTO chunks (file_id, faiss_id, label, text) VALUES (?, ?, ?, ?)",
             [
@@ -114,7 +124,11 @@ class Store:
                 for i, (text, label) in enumerate(chunks)
             ],
         )
-        self._conn.commit()
+
+        self._known[str(path)] = mtime
+
+        if not in_batch:
+            self._conn.commit()
 
     # ------------------------------------------------------------------ #
     # Searching                                                            #
@@ -132,7 +146,7 @@ class Store:
             query_vec = query_vec / norm
         q = query_vec.reshape(1, -1).astype("float32")
 
-        fetch_k = max(top_k * 5, 50)  # oversample, then filter
+        fetch_k = max(top_k * 5, 50)
         scores, ids = self._index.search(q, fetch_k)
 
         results = []
